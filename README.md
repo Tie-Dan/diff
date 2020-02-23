@@ -330,6 +330,14 @@
        parent.insertBefore(createDomElementFromVnode(newChildren[i]), beforeElement)
      }
    }
+   // 12.判断中间的unfined 直接删除
+   if (oldStartIndex <= oldEndIndex) {
+     for (let i = oldStartIndex; i <= oldEndIndex; i++) {
+       if (oldChildren[i]) {
+         parent.removeChild(oldChildren[i].domElement)
+       }
+     }
+   }
    ```
    
 
