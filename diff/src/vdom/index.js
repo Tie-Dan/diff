@@ -1,10 +1,10 @@
-import h from './h'
+import creteElement from './creteElement'
 import {
     render,
-    patch,
+    patch
 } from './patch'
 export {
-    h,
+    creteElement,
     render,
     patch
 }

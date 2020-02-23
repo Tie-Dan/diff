@@ -4,6 +4,7 @@
 
    ```js
    // 1. 创建虚拟DOM
+   import {h}from './vdom' 
    h('div', {
        id: 'wrapper',
        a: 1,
@@ -52,13 +53,13 @@
 
    ```js
    // 6.vnode.js
-   export function vnode(type, props, key, children, Text) {
+   export function vnode(type, props, key, children, text) {
        return {
            type,
            props,
            key,
            children,
-           Text
+           text
        }
    }
    ```
@@ -66,13 +67,16 @@
 2. 渲染虚拟DOM
 
    ```js
-   // 1. index.js
+   // 1. vdom/index.js
+   import{render} from './patch'
+   export{h,render}
+   // index.js
    render(vnode, app)
    ```
 
    ```js
-   // 2. patch.sj
-   xport function render(vnode, container) {
+   // 2. patch.js
+   export function render(vnode, container) {
        // 通过这个方法可以将虚拟节点转化为真实节点
        let ele = createDomElementFromVnode(vnode)
        //  插入到容器
@@ -94,7 +98,7 @@
        } else {
            // 文本
            vnode.domElement = document.createTextNode(text)
-       }
+       } 
        return vnode.domElement
    }
    ```
@@ -102,7 +106,6 @@
    ```js
    // 创建完真实DOM节点 根据当前的虚拟节点的属性 更新真实的dom元素
    if (type) {
-     // 建立虚拟节点和真实元素一个关系 后面可以用来更新真实DOM
      vnode.domElement = document.createElement(type)
      updateProperties(vnode) // 1. 根据当前的虚拟节点的属性 去更新真实的DOM元素
    } else {
@@ -145,12 +148,11 @@
    ```
 
    ```js
-   // 如果新的里面有style 老的里面也有style style有可能还不一样 老的有background新的里面咩有
+   // 1. 如果新的里面有style 老的里面也有style style有可能还不一样 老的有background新的里面咩有
    let newStyleObj = newProps.style || {}
    let oldStyleObj = oldProps.style || {}
    for (let propName in oldStyleObj) {
      if (!newStyleObj[propName]) {
-       // 老dom元素上跟新之后 没有某个样式需要删除
        document.style[propName] = ''
      }
    }
@@ -160,7 +162,7 @@
    // 递归调用render()渲染子节点
    vnode.domElement = document.createElement(type)
    updateProperties(vnode)
-   // children中放的也是一个个的虚拟节点 递归调用渲染
+   // 1. children中放的也是一个个的虚拟节点 递归调用渲染
    children.forEach(childVnode => render(childVnode, vnode.domElement))
    ```
 
@@ -239,8 +241,22 @@
    function isSomeVnode(oldVnode, newVnode) {
        return oldVnode.key === newVnode.key && oldVnode.type === newVnode.type
    }
+   // 创建映射表 做成一个{a:0,b:1,c:2,d:3}
+   function keyMapByIndex(oldChildren) {
+       let map = {}
+       for (let i = 0; i < oldChildren.length; i++) {
+           let current = oldChildren[i]
+           if (current.key) {
+               map[current.key] = i
+           }
+       }
+       return map
+   }
    // diff 最复杂的列表
    function updateChildren(parent, oldChildren, newChildren) {
+      // 12. 创建映射表
+       let map = keyMapByIndex(oldChildren)
+       
        let oldStartIndex = 0
        let oldStartVnode = oldChildren[0]
        let oldEndIndex = oldChildren.length - 1
@@ -249,44 +265,71 @@
        let newStartIndex = 0
        let newStartVnode = newChildren[0]
        let newEndIndex = newChildren.length - 1
-       let newEndVnode = newChildren[newEndIndex]
+    let newEndVnode = newChildren[newEndIndex]
    
-       // 判断老的孩子和新的孩子 循环的时候 谁先结束就停止循环
+       // 1. 判断老的孩子和新的孩子 循环的时候 谁先结束就停止循环
        while (oldStartIndex <= oldEndIndex && newStartIndex <= newEndIndex) {
+          // 2. 如果标签和key相同接着往下
            if (isSomeVnode(oldStartVnode, newStartVnode)) {
-               // 如果标签相同 调用patch方法 让他们去对比属性
+               // 3. 如果标签相同 调用patch方法 让他们去对比属性
                patch(oldStartVnode, newStartVnode)
-               // 如果他们俩相同 分别往后移一位
+               // 4. 如果他们俩相同 分别往后移一位
                oldStartVnode = oldChildren[++oldStartIndex]
                newStartVnode = newChildren[++newStartIndex]
            }
        }
    }
    ```
-
+   
    ```js
    while (oldStartIndex <= oldEndIndex && newStartIndex <= newEndIndex) {
+     			// 11. 判断移动到没有
+     		   if (!oldStartVnode) {
+               oldStartVnode = oldChildren[++oldStartIndex]
+           } else if (!oldEndVnode) {
+               oldEndVnode = oldChildren[--oldEndIndex]
+           } else
            // 头部一样 
-           if (isSomeVnode(oldStartVnode, newStartVnode)) {
+        if (isSomeVnode(oldStartVnode, newStartVnode)) {
                // 如果标签相同 调用patch方法 让他们去对比属性
                patch(oldStartVnode, newStartVnode)
                // 如果他们俩相同 分别往后移一位
-               oldStartVnode = oldChildren[++oldStartIndex]
+            oldStartVnode = oldChildren[++oldStartIndex]
                newStartVnode = newChildren[++newStartIndex]
-           } else if (isSomeVnode(oldEndVnode, newEndVnode)) { // 尾部一样
+           } else if (isSomeVnode(oldEndVnode, newEndVnode)) { 
+             // 7. 尾部一样
                patch(oldEndVnode, newEndVnode)
                oldEndVnode = oldChildren[--oldEndIndex]
                newEndVnode = newChildren[--newEndIndex]
+           }else {
+               // 9.前面都没有走 乱序
+               // 需要先到新节点 去老的中查找 看是否存在 如果存在就复用 不存在就创建插入即可
+               let index = map[newStartVnode.key] // 去创建映射表
+               if (index == null) {
+                   // 新的队列中没有此项目 
+                   parent.insertBefore(createDomElementFromVnode(newStartVnode),
+                       oldStartVnode.domElement
+                   )
+               } else {
+                   let toMoveNode = oldChildren[index]
+                   patch(toMoveNode, newStartVnode)
+                   parent.insertBefore(toMoveNode.domElement, oldStartVnode.domElement)
+                   oldChildren[index] = undefined
+               }
+             	// 10. 移动位置
+               newStartVnode = newChildren[++newStartIndex]
            }
-       }
-       // 把多余节点放进去  只有小于或者等于 才说明有剩余
-       if (newStartIndex <= newEndIndex) {
-           for (let i = newStartIndex; i <= newEndIndex; i++) {
-               // parent.appendChild(createDomElementFromVnode(newChildren[i]))
-               let beforeElement = newChildren[newEndIndex + 1] == null ? null : newChildren[newEndIndex + 1].domElement;
-               parent.insertBefore(createDomElementFromVnode(newChildren[i]), beforeElement)
-           }
-       }
+   }
+   // 5. 把多余节点放进去  只有小于或者等于 才说明有剩余
+   if (newStartIndex <= newEndIndex) {
+     for (let i = newStartIndex; i <= newEndIndex; i++) {
+       // 6. parent.appendChild(createDomElementFromVnode(newChildren[i]))
+       
+       // 8. 判断是从头比较还是从尾部比较
+       let beforeElement = newChildren[newEndIndex + 1] == null ? null : newChildren[newEndIndex + 1].domElement;
+       parent.insertBefore(createDomElementFromVnode(newChildren[i]), beforeElement)
+     }
+   }
    ```
-
+   
 
