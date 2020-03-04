@@ -32,6 +32,8 @@ let oldValue = creteElement('div', {},
 )
 
 render(oldValue, app)
+
+
 let newValue = creteElement('div', {},
 
     creteElement('li', {

@@ -1,13 +1,14 @@
 export function render(vnode, container) {
 
+
     // 通过这个方法可以将虚拟节点转化为真实节点
-    console.log(vnode.text)
     let ele = createDomElementFromVnode(vnode)
     //  插入到容器
     container.appendChild(ele)
 }
 // 通过虚拟节点创建一个真实的DOM节点
 function createDomElementFromVnode(vnode) {
+
     let {
         type,
         key,
@@ -42,12 +43,10 @@ function updateProper(newVnode, oldProps = {}) {
     let newStyleObj = newProps.style || {}
     let oldStyleObj = oldProps.style || {}
     // 如果老的里面没有 新的里面有
-    for (let newPropsName in newProps) {
-        domElement[newPropsName] = newProps[newPropsName]
-    }
+
     for (let propName in oldStyleObj) {
         if (!newStyleObj[propName]) {
-            document.style[propName] = ''
+            domElement.style[propName] = ''
         }
     }
     // 如果属性是style
